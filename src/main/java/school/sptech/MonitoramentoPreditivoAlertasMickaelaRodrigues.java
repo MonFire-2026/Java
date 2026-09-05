@@ -1,9 +1,8 @@
 package school.sptech;
 
-import java.sql.SQLOutput;
 import java.util.Scanner;
 
-public class monitoramentoPreditivo {
+public class MonitoramentoPreditivoAlertasMickaelaRodrigues {
     static void main() {
 
         Scanner leitorValores = new Scanner(System.in);

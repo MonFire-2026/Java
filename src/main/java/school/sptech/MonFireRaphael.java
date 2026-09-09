@@ -2,7 +2,7 @@ package school.sptech;
 
 import java.util.Scanner;
 
-public class MonFire {
+public class MonFireRaphael {
 
     public static void main() {
 

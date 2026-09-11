@@ -77,13 +77,13 @@ public class JavaMonFire {
 
         if(limiteCpu<valorCapturaCpu){
 
-            System.out.printf("Alerta: Nivel Crítico Ultrapassado, o valor da captura da CPU foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n Verifique o sistema antes que ele congele", valorCapturaCpu,limiteCpu);
+            System.out.printf("Alerta: Nivel Crítico Ultrapassado, o valor da captura da CPU foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n Verifique o sistema antes que ele congele %n", valorCapturaCpu,limiteCpu);
         }else{
 
             System.out.println("Alerta: Tudo certo por aqui, a cpu está com o valor ideal para uso");
         }
         if(limiteRAM<valorCapturaRAM){
-            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura da Ram foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n. Verifique o sistema antes que ele congele", valorCapturaRAM,limiteRAM);
+            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura da Ram foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n. Verifique o sistema antes que ele congele %n", valorCapturaRAM,limiteRAM);
         }else{
 
             System.out.println("Alerta: Tudo certo por aqui, a RAM está com o valor ideal para uso");

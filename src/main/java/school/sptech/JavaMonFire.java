@@ -8,10 +8,10 @@ public class JavaMonFire {
         Scanner leitorValores = new Scanner(System.in);
 
         System.out.println("==================================================================");
-        System.out.println("Defina os limites críticos para cada area");
+        System.out.println("Defina os limites críticos para cada área");
         System.out.println("==================================================================\n");
 
-        System.out.println("Digite o limite inicial Critico para a porcentagem da cpu: ");
+        System.out.println("Digite o limite inicial Crítico para a porcentagem da cpu: ");
         Float limiteCpu = leitorValores.nextFloat();
         leitorValores.nextLine();
         while (limiteCpu<0||limiteCpu>100){
@@ -77,43 +77,22 @@ public class JavaMonFire {
 
         if(limiteCpu<valorCapturaCpu){
 
-            System.out.printf("Alerta: Nivel Critico Ultrapassado, o valor da captura da CPU foi de %.2f%n sendo que o limite inicial é de %.2f%n. Verifique o sistema antes que ele congele", valorCapturaCpu,limiteCpu);
+            System.out.printf("Alerta: Nivel Crítico Ultrapassado, o valor da captura da CPU foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n Verifique o sistema antes que ele congele", valorCapturaCpu,limiteCpu);
         }else{
 
             System.out.println("Alerta: Tudo certo por aqui, a cpu está com o valor ideal para uso");
         }
         if(limiteRAM<valorCapturaRAM){
-            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura da Ram foi de %.2f%n sendo que o limite inicial é de %.2f%n. Verifique o sistema antes que ele congele", valorCapturaRAM,limiteRAM);
+            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura da Ram foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n. Verifique o sistema antes que ele congele", valorCapturaRAM,limiteRAM);
         }else{
 
             System.out.println("Alerta: Tudo certo por aqui, a RAM está com o valor ideal para uso");
         }
         if(limiteDisco<valorCapturaDisco){
-            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura do Disco foi de %.2f%n sendo que o limite inicial é de %.2f%n. Verifique o sistema antes que ele congele", valorCapturaDisco,limiteDisco);
+            System.out.printf("Alerta Nivel Critico Ultrapassado, o valor da captura do Disco foi de %.2f%% %n sendo que o limite inicial é de %.2f%% %n. Verifique o sistema antes que ele congele", valorCapturaDisco,limiteDisco);
         }else{
 
             System.out.println("Alerta: Tudo certo por aqui, o Disco está com o valor ideal para uso");
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
-
-
-
-
-
-
 }
-

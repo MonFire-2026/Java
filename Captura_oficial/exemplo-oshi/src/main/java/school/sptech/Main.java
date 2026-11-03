@@ -1,6 +1,5 @@
 package school.sptech;
 
-import oshi.hardware.CentralProcessor;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
 import oshi.spi.SystemInfoFactory;
@@ -28,34 +27,80 @@ public class Main {
     public static void main(String[] args) {
         SystemInfoProvider si = SystemInfoFactory.create();
         HardwareAbstractionLayer hal = si.getHardware();
-        CentralProcessor cpu = hal.getProcessor();
 
         JdbcTemplate con = new ConexaoBanco().getJdbcTemplate();
 
-        long[][] prevTicks = { cpu.getSystemCpuLoadTicks() };
+        // Guarda os contadores iniciais da rede
+        long bytesRecebidosAnterior = 0;
+        long bytesEnviadosAnterior = 0;
+
+        for (NetworkIF net : hal.getNetworkIFs()) {
+            if (net.getIfOperStatus() == NetworkIF.IfOperStatus.UP) {
+                net.updateAttributes();
+
+                bytesRecebidosAnterior += net.getBytesRecv();
+                bytesEnviadosAnterior += net.getBytesSent();
+            }
+        }
+
+        final long[] recebidosAnterior = {bytesRecebidosAnterior};
+        final long[] enviadosAnterior = {bytesEnviadosAnterior};
+        final long[] tempoAnterior = {System.nanoTime()};
 
         TimerTask tarefa = new TimerTask() {
             @Override
             public void run() {
+                long bytesRecebidosAtual = 0;
+                long bytesEnviadosAtual = 0;
 
-                // Rede em MB (soma das interfaces ativas, valor acumulado)
-                double recebidosMb = 0;
-                double enviadosMb = 0;
                 for (NetworkIF net : hal.getNetworkIFs()) {
                     if (net.getIfOperStatus() == NetworkIF.IfOperStatus.UP) {
                         net.updateAttributes();
-                        recebidosMb += net.getBytesRecv() / 1024.0 / 1024.0;
-                        enviadosMb += net.getBytesSent() / 1024.0 / 1024.0;
+
+                        bytesRecebidosAtual += net.getBytesRecv();
+                        bytesEnviadosAtual += net.getBytesSent();
                     }
                 }
 
+                long tempoAtual = System.nanoTime();
+
+                double segundos = (tempoAtual - tempoAnterior[0])
+                        / 1_000_000_000.0;
+
+                long diferencaRecebidos = Math.max(
+                        0, bytesRecebidosAtual - recebidosAnterior[0]
+                );
+
+                long diferencaEnviados = Math.max(
+                        0, bytesEnviadosAtual - enviadosAnterior[0]
+                );
+
+                // Converte o intervalo para MB
+                double recebidosMb = diferencaRecebidos / 1_000_000.0;
+                double enviadosMb = diferencaEnviados / 1_000_000.0;
+
+                // Salva  no banco.
                 salvar(con, recebidosMb, CONFIG_REDE_RECEBIDOS);
                 salvar(con, enviadosMb, CONFIG_REDE_ENVIADOS);
 
-                System.out.printf("Salvo ->  Rede: %.2f MB recebidos, %.2f MB enviados%n",recebidosMb, enviadosMb);
+                // Calcula a velocidade média em Mbps
+                double recebidosMbps = (diferencaRecebidos * 8.0)
+                        / segundos / 1_000_000.0;
+
+                double enviadosMbps = (diferencaEnviados * 8.0)
+                        / segundos / 1_000_000.0;
+
+                System.out.printf( "Salvo -> Rede: %.4f MB recebidos (%.2f Mbps), %.4f MB enviados (%.2f Mbps)%n", recebidosMb, recebidosMbps, enviadosMb, enviadosMbps
+                );
+
+                // Atualiza os valores para a próxima medição
+                recebidosAnterior[0] = bytesRecebidosAtual;
+                enviadosAnterior[0] = bytesEnviadosAtual;
+                tempoAnterior[0] = tempoAtual;
             }
         };
 
-        new Timer().scheduleAtFixedRate(tarefa, 0, 5000);
+        // Ccaptura a cada 5 segundos
+        new Timer().scheduleAtFixedRate(tarefa, 5000, 5000);
     }
 }

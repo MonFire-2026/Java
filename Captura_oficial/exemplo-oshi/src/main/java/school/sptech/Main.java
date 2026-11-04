@@ -6,12 +6,60 @@ import oshi.spi.SystemInfoFactory;
 import oshi.spi.SystemInfoProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class Main {
-    private static final int CONFIG_REDE_RECEBIDOS = 11;
-    private static final int CONFIG_REDE_ENVIADOS = 12;
+    private static final String REDE_RECEBIDA = "REDE_RECEBIDA";
+    private static final String REDE_ENVIADA = "REDE_ENVIADA";
+
+    private static int lerMaquinaId() {
+        String valor = System.getenv("MAQUINA_ID");
+
+        try {
+            int maquinaId = Integer.parseInt(valor);
+            if (maquinaId <= 0) {
+                throw new NumberFormatException();
+            }
+            return maquinaId;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "A variável MAQUINA_ID deve ser um inteiro positivo."
+            );
+        }
+    }
+
+    private static Map<String, Integer> buscarConfiguracoes(
+            JdbcTemplate con,
+            int maquinaId
+    ) {
+        Map<String, Integer> configuracoes = new HashMap<>();
+        String sql = """
+                SELECT cm.id, tc.codigo
+                FROM configuracao_maquina cm
+                JOIN componente comp ON comp.id = cm.fk_componente
+                JOIN tipo_componente tc ON tc.id = comp.fk_tipo_componente
+                WHERE cm.fk_maquina = ?
+                  AND cm.ativa = 1
+                  AND comp.status_atividade = 1
+                  AND tc.codigo IN ('REDE_RECEBIDA', 'REDE_ENVIADA')
+                """;
+
+        con.query(
+                sql,
+                preparedStatement -> preparedStatement.setInt(1, maquinaId),
+                resultSet -> {
+                    configuracoes.put(
+                            resultSet.getString("codigo"),
+                            resultSet.getInt("id")
+                    );
+                }
+        );
+
+        return configuracoes;
+    }
 
     private static void salvar(JdbcTemplate con, double valor, int configuracao) {
         try {
@@ -29,6 +77,18 @@ public class Main {
         HardwareAbstractionLayer hal = si.getHardware();
 
         JdbcTemplate con = new ConexaoBanco().getJdbcTemplate();
+        int maquinaId = lerMaquinaId();
+        Map<String, Integer> configuracoes = buscarConfiguracoes(con, maquinaId);
+        Integer configuracaoRecebida = configuracoes.get(REDE_RECEBIDA);
+        Integer configuracaoEnviada = configuracoes.get(REDE_ENVIADA);
+
+        System.out.printf("Máquina %d | Métricas Java: %s%n", maquinaId, configuracoes.keySet());
+        if (configuracaoRecebida == null) {
+            System.out.println("Rede recebida não está configurada para esta máquina.");
+        }
+        if (configuracaoEnviada == null) {
+            System.out.println("Rede enviada não está configurada para esta máquina.");
+        }
 
         // Guarda os contadores iniciais da rede
         long bytesRecebidosAnterior = 0;
@@ -79,9 +139,12 @@ public class Main {
                 double recebidosMb = diferencaRecebidos / 1_000_000.0;
                 double enviadosMb = diferencaEnviados / 1_000_000.0;
 
-                // Salva  no banco.
-                salvar(con, recebidosMb, CONFIG_REDE_RECEBIDOS);
-                salvar(con, enviadosMb, CONFIG_REDE_ENVIADOS);
+                if (configuracaoRecebida != null) {
+                    salvar(con, recebidosMb, configuracaoRecebida);
+                }
+                if (configuracaoEnviada != null) {
+                    salvar(con, enviadosMb, configuracaoEnviada);
+                }
 
                 // Calcula a velocidade média em Mbps
                 double recebidosMbps = (diferencaRecebidos * 8.0)
@@ -90,8 +153,12 @@ public class Main {
                 double enviadosMbps = (diferencaEnviados * 8.0)
                         / segundos / 1_000_000.0;
 
-                System.out.printf( "Salvo -> Rede: %.4f MB recebidos (%.2f Mbps), %.4f MB enviados (%.2f Mbps)%n", recebidosMb, recebidosMbps, enviadosMb, enviadosMbps
-                );
+                if (configuracaoRecebida != null || configuracaoEnviada != null) {
+                    System.out.printf(
+                            "Salvo -> Rede: %.4f MB recebidos (%.2f Mbps), %.4f MB enviados (%.2f Mbps)%n",
+                            recebidosMb, recebidosMbps, enviadosMb, enviadosMbps
+                    );
+                }
 
                 // Atualiza os valores para a próxima medição
                 recebidosAnterior[0] = bytesRecebidosAtual;

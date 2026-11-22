@@ -16,6 +16,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.slack.api</groupId>
+            <artifactId>slack-api-client</artifactId>
+            <version>1.54.0</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.github.oshi</groupId>
             <artifactId>oshi-core-ffm</artifactId>
             <version>7.6.1</version>

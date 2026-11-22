@@ -1,16 +1,13 @@
 package school.sptech;
 
+import com.slack.api.Slack;
+import com.slack.api.methods.response.chat.ChatPostMessageResponse;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
 import oshi.spi.SystemInfoFactory;
 import oshi.spi.SystemInfoProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -22,11 +19,10 @@ import java.util.TimerTask;
 public class Main {
     private static final String REDE_RECEBIDA = "REDE_RECEBIDA";
     private static final String REDE_ENVIADA = "REDE_ENVIADA";
-    private static final String SLACK_WEBHOOK_URL = System.getenv("SLACK_WEBHOOK_URL");
+    private static final String SLACK_BOT_TOKEN = System.getenv("SLACK_BOT_TOKEN");
+    private static final String SLACK_CHANNEL_ID = System.getenv("SLACK_CHANNEL_ID");
     private static final Map<String, String> ESTADOS_ALERTA = new HashMap<>();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
+    private static final Slack SLACK_CLIENT = Slack.getInstance();
 
     private static class ConfiguracaoMetrica {
         int id;
@@ -175,13 +171,6 @@ public class Main {
         };
     }
 
-    private static String escaparJson(String texto) {
-        return texto
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n");
-    }
-
     private static String montarMensagem(
             double valor,
             ConfiguracaoMetrica configuracao,
@@ -220,39 +209,34 @@ public class Main {
 
     private static boolean enviarAoSlack(String mensagem) {
         try {
-            String corpo = "{\"text\":\"" + escaparJson(mensagem) + "\"}";
-            HttpRequest requisicao = HttpRequest.newBuilder()
-                    .uri(URI.create(SLACK_WEBHOOK_URL))
-                    .timeout(Duration.ofSeconds(5))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(corpo))
-                    .build();
+            ChatPostMessageResponse resposta = SLACK_CLIENT
+                    .methods(SLACK_BOT_TOKEN)
+                    .chatPostMessage(requisicao -> requisicao
+                            .channel(SLACK_CHANNEL_ID)
+                            .text(mensagem)
+                    );
 
-            HttpResponse<String> resposta = HTTP_CLIENT.send(
-                    requisicao,
-                    HttpResponse.BodyHandlers.ofString()
-            );
-
-            if (resposta.statusCode() < 200 || resposta.statusCode() >= 300) {
+            if (!resposta.isOk()) {
                 System.err.println(
-                        "Slack respondeu com o status " + resposta.statusCode()
+                        "Slack recusou a mensagem: " + resposta.getError()
                 );
                 return false;
             }
 
             return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.err.println("Envio ao Slack interrompido.");
-            return false;
         } catch (Exception e) {
-            System.err.println("Erro ao enviar alerta ao Slack: " + e.getMessage());
+            System.err.println(
+                    "Erro ao enviar alerta ao Slack: " + e.getMessage()
+            );
             return false;
         }
     }
 
     private static void verificarAlerta(double valor, ConfiguracaoMetrica configuracao) {
-        if (SLACK_WEBHOOK_URL == null || SLACK_WEBHOOK_URL.isBlank()) return;
+        if (
+                SLACK_BOT_TOKEN == null || SLACK_BOT_TOKEN.isBlank()
+                || SLACK_CHANNEL_ID == null || SLACK_CHANNEL_ID.isBlank()
+        ) return;
 
         String nivelAtual = classificarRede(valor, configuracao);
         String nivelAnterior = ESTADOS_ALERTA.getOrDefault(
@@ -288,8 +272,14 @@ public class Main {
         if (configuracaoEnviada == null) {
             System.out.println("Rede enviada não está configurada para esta máquina.");
         }
-        if (SLACK_WEBHOOK_URL == null || SLACK_WEBHOOK_URL.isBlank()) {
-            System.out.println("SLACK_WEBHOOK_URL não configurada. Alertas desativados.");
+        if (
+                SLACK_BOT_TOKEN == null || SLACK_BOT_TOKEN.isBlank()
+                || SLACK_CHANNEL_ID == null || SLACK_CHANNEL_ID.isBlank()
+        ) {
+            System.out.println(
+                    "SLACK_BOT_TOKEN ou SLACK_CHANNEL_ID não configurado. "
+                    + "Alertas desativados."
+            );
         }
 
         // Guarda os contadores iniciais da rede
